@@ -136,12 +136,20 @@ class GPT2:
         num_batches = 0
 
         print("Starting validation...")
+        # We limit the validation to 500 batches so it doesn't run forever on an infinite dataset.
+        max_val_batches = 500
+
         for batch in tqdm(validation_dataloader, desc="Validating GPT-2"):
+            if num_batches >= max_val_batches:
+                break
+                
             text_batch = batch["text"]
             x, y = self.process_batch(text_batch, self.tokenizer, self.hyperparamters["max_len"])
             
-            logits = self.model(x)
-            loss = self.calculate_loss(logits, y)
+            # Use AMP for validation to match training speed and VRAM usage
+            with torch.autocast(device_type=self.hyperparamters["device"].type, dtype=torch.float16):
+                logits = self.model(x)
+                loss = self.calculate_loss(logits, y)
             
             total_loss += loss.item()
             num_batches += 1
