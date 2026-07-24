@@ -56,7 +56,7 @@ class GPT2:
             #################################################
 
             ########### optimizer & scheduler hyperparamters ############
-            "learning_rate": 3e-4,
+            "learning_rate": 6e-4,
             "weight_decay": 0.1,
             "num_steps": 100000,
             "div_factor": 25.0,
@@ -66,6 +66,7 @@ class GPT2:
 
             ########### dataloader hyperparamters ###########
             "batch_size": 16,
+            "accumulation_steps": 32, # effective batch size = 16 * 32 = 512
             "validation_dataset_size": 100000, # 100000 seems to be a good number
             #################################################
         }
@@ -101,10 +102,17 @@ class GPT2:
         self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer=self.optimizer,
             max_lr=self.hyperparamters["learning_rate"],
-            total_steps=self.hyperparamters["num_steps"],
+            total_steps=self.hyperparamters["num_steps"] // self.hyperparamters["accumulation_steps"],
             div_factor=self.hyperparamters["div_factor"],
             final_div_factor=self.hyperparamters["final_div_factor"],
             pct_start=self.hyperparamters["pct_start"]
+        )
+
+        device_type = self.hyperparamters["device"].type
+        # GradScaler is only required for CUDA. For MPS and CPU, we use a disabled CPU scaler as a no-op fallback.
+        self.scaler = torch.amp.GradScaler(
+            device='cuda' if device_type == 'cuda' else 'cpu', 
+            enabled=(device_type == 'cuda')
         )
 
     def __call__(self, train=False, validate=False):
@@ -163,6 +171,7 @@ class GPT2:
 
         progress_bar = tqdm(total=self.hyperparamters["num_steps"], desc="Training GPT-2")
 
+        optimizer.zero_grad()
         for step in range(self.hyperparamters["num_steps"]):
             try:
                 batch = next(train_iter)
@@ -177,37 +186,44 @@ class GPT2:
             # prepare x and y for training
             x, y = self.process_batch(text_batch, self.tokenizer, self.hyperparamters["max_len"])
 
-            # zero the gradients
-            optimizer.zero_grad()
+            # forward pass with AMP
+            with torch.autocast(device_type=self.hyperparamters["device"].type, dtype=torch.float16):
+                logits = self.model(x)
+                loss = self.calculate_loss(logits, y)
+                # scale loss for gradient accumulation
+                loss = loss / self.hyperparamters["accumulation_steps"]
 
-            # forward pass
-            logits = self.model(x)
+            # backward pass with scaler
+            self.scaler.scale(loss).backward()
 
-            # calculate loss and track it for making graph
-            loss = self.calculate_loss(logits, y)
-            self.plotting.track_train(loss)
-            self.training_loss = loss.item()
+            # unscaled loss for logging
+            actual_loss = loss.item() * self.hyperparamters["accumulation_steps"]
+            self.plotting.track_train(torch.tensor(actual_loss))
+            self.training_loss = actual_loss
 
             # update progress bar
             progress_bar.update(1)
             current_lr = scheduler.get_last_lr()[0]
-            progress_bar.set_postfix({"Training Loss": f"{loss.item():.4f}", "Learning Rate": f"{current_lr:.4e}"})
+            progress_bar.set_postfix({"Training Loss": f"{actual_loss:.4f}", "Learning Rate": f"{current_lr:.4e}"})
 
             #log the training
             if step % 100 == 0:
                 with open(log_file_path, "a") as f:
-                    f.write(f"{step},{loss.item():.4f},{current_lr:.4e}\n")
+                    f.write(f"{step},{actual_loss:.4f},{current_lr:.4e}\n")
             
-            loss.backward()
-
-            optimizer.step()
-            scheduler.step()
+            # update weights only every accumulation_steps
+            if (step + 1) % self.hyperparamters["accumulation_steps"] == 0:
+                self.scaler.step(optimizer)
+                self.scaler.update()
+                optimizer.zero_grad()
+                scheduler.step()
 
             if step > 0 and step % 10000 == 0:
                 self.weight_manager.save(
                     model=self.model,
                     optimizer=optimizer,
-                    step=step
+                    step=step,
+                    extra={"scaler_state_dict": self.scaler.state_dict()}
                 )
 
         progress_bar.close()

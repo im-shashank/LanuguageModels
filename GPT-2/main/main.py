@@ -14,6 +14,9 @@ weight_loaded = gpt2.weight_manager.load(
     device=gpt2.hyperparamters["device"]
 )
 
+if weight_loaded is not None and "scaler_state_dict" in weight_loaded:
+    gpt2.scaler.load_state_dict(weight_loaded["scaler_state_dict"])
+
 if weight_loaded == None:
     # Run training
     gpt2(train=True, validate=True)
@@ -28,6 +31,6 @@ if weight_loaded == None:
     # Export run to csv
     gpt2.export_run_to_csv()
 else:
-    gpt2(train=False, validate=True)
+    gpt2(train=False, validate=False)
 
 print(gpt2.sample(prompt="Hello, my name is"))
