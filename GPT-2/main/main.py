@@ -31,6 +31,7 @@ if weight_loaded == None:
     # Export run to csv
     gpt2.export_run_to_csv()
 else:
-    gpt2(train=False, validate=False)
+    gpt2(train=False, validate=True)
 
-print(gpt2.sample(prompt="Hello, my name is"))
+# Sample with Top-K and lower temperature for much better coherence!
+print(gpt2.sample(prompt="Hello, my name is", top_k=50, temperature=0.8))

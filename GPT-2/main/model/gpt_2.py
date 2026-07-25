@@ -139,8 +139,10 @@ class GPT2:
         # We limit the validation to 500 batches so it doesn't run forever on an infinite dataset.
         max_val_batches = 500
 
-        for batch in tqdm(validation_dataloader, desc="Validating GPT-2"):
-            if num_batches >= max_val_batches:
+        progress_bar = tqdm(max_val_batches, desc="Validating GPT-2")
+
+        for batch in validation_dataloader:
+            if max_val_batches != 0 and num_batches >= max_val_batches:
                 break
                 
             text_batch = batch["text"]
@@ -153,6 +155,9 @@ class GPT2:
             
             total_loss += loss.item()
             num_batches += 1
+            progress_bar.update(1)
+            progress_bar.set_postfix({"Validation Loss": f"{loss.item():.4f}"})
+        progress_bar.close()
 
         average_loss = total_loss / num_batches if num_batches > 0 else 0.0
         

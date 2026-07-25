@@ -1,0 +1,2 @@
+Timestamp,Total_Parameters,Vocab_Size,D_Model,Max_Len,N_Layers,N_Heads,D_FF,Dropout,Batch_Size,Max_Iterations,Optimizer,Learning_Rate,Weight_Decay,Train_Loss,Validation_Loss
+2026-07-25 02:08:54,162373248,50304,768,1024,12,12,3072,0.1,16,100000,AdamW,0.0006,0.1,3.1263,3.2204
