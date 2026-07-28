@@ -65,8 +65,8 @@ class GPT2:
             #############################################################
 
             ########### dataloader hyperparamters ###########
-            "batch_size": 2, # Lowered to 2 so it doesn't OOM on your local Mac
-            "accumulation_steps": 256, # effective batch size = 2 * 256 = 512
+            "batch_size": 8, # Maximize A6000 VRAM (16 caused OOM, so 8 is the sweet spot)
+            "accumulation_steps": 64, # effective batch size = 8 * 64 = 512
             "validation_dataset_size": 100000, # 50000 seems to be a good number
             #################################################
         }
