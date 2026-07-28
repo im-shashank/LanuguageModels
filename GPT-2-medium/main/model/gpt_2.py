@@ -67,7 +67,7 @@ class GPT2:
             ########### dataloader hyperparamters ###########
             "batch_size": 16,
             "accumulation_steps": 32, # effective batch size = 16 * 32 = 512
-            "validation_dataset_size": 100000, # 100000 seems to be a good number
+            "validation_dataset_size": 50000, # 50000 seems to be a good number
             #################################################
         }
 
