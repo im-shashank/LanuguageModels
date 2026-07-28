@@ -56,7 +56,7 @@ class GPT2:
             #################################################
 
             ########### optimizer & scheduler hyperparamters ############
-            "learning_rate": 6e-4,
+            "learning_rate": 3e-4,
             "weight_decay": 0.1,
             "num_steps": 100000,
             "div_factor": 25.0,
