@@ -50,7 +50,7 @@ class GPT2:
             "max_len": 1024,
             "n_layers": 24,
             "n_heads": 16,
-            "d_ff": 1024,
+            "d_ff": 4096, # In transformers, the feed-forward layer is 4x the d_model
             "device": device,
             "dropout": 0.1,
             #################################################
@@ -58,16 +58,16 @@ class GPT2:
             ########### optimizer & scheduler hyperparamters ############
             "learning_rate": 6e-4,
             "weight_decay": 0.1,
-            "num_steps": 100000,
+            "num_steps": 50000,
             "div_factor": 25.0,
             "final_div_factor": 1e4,
             "pct_start": 0.1,
             #############################################################
 
             ########### dataloader hyperparamters ###########
-            "batch_size": 16,
-            "accumulation_steps": 32, # effective batch size = 16 * 32 = 512
-            "validation_dataset_size": 50000, # 50000 seems to be a good number
+            "batch_size": 2, # Lowered to 2 so it doesn't OOM on your local Mac
+            "accumulation_steps": 256, # effective batch size = 2 * 256 = 512
+            "validation_dataset_size": 100000, # 50000 seems to be a good number
             #################################################
         }
 
